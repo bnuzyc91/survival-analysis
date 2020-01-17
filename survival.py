@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jan 16 00:36:44 2020
+
+@author: zyc
+"""
+
 import pandas as pd
 import numpy as np
 import math
@@ -167,6 +175,8 @@ class RandomSurvivalForest():
         N = len(t)
         #key is unique time points,value is index for unique time points
         get_time = {i:t[i] for i in range(len(t))}
+        longrank=0
+        count=0
         for feature in features:
             values = x[feature].unique()
             if not (len(values) < 2 * self.min_samples_split + 1):
@@ -175,19 +185,31 @@ class RandomSurvivalForest():
                 values = list(self.rs.permutation(values))[:round(len(values) * look_ratio)]
             for val in values:
                 feature_split_pairs.append((feature, val))
-
-                #firstly summary
-                #event&censor at each unique time points for left child
-                sum1=x[x[feature]<=val].groupby(["time"])["event"].value_counts().unstack().fillna(0)
-                #sum1.reset_index()
-                #event&censor at each unique time points for right child
-                sum2=x[x[feature]>val].groupby(["time"])["event"].value_counts().unstack().fillna(0)
                 nb_inf=x[x[feature]<=val].shape[0]
-                nb_sup=x[x[feature]<=val].shape[0]
-	     #print(feature,val,nb_inf,nb_sub)	
-                information_gains = information_gains.append(self.statlogrank(N,nb_inf,nb_inf,sum1,sum2, get_time))
+                nb_sup=x[x[feature]>val].shape[0]
+                count=count+1
+                if nb_inf<self.min_samples_split or nb_inf<self.min_samples_split:
+                    information_gains.append(0)
+                else:    
+                    #firstly summary
+                    #event&censor at each unique time points for left child
+                    sum1=x[x[feature]<=val].groupby(['time'])['event'].value_counts().unstack().fillna(0)
+                    #sum1.reset_index()
+                    #event&censor at each unique time points for right child
+                    sum2=x[x[feature]>val].groupby(['time'])['event'].value_counts().unstack().fillna(0)
+                    print(sum1)
+                    print(sum2)
+                    logrank=self.statlogrank(N,nb_inf,nb_inf,sum1,sum2, get_time)
+                    #print(logrank)
+                    information_gains.append(logrank)
+                    #information_gains = information_gains.append(self.statlogrank(N,nb_inf,nb_inf,sum1,sum2, get_time))
+                print("feature:",feature,"value:",val,"lchild:",nb_inf,"rchild:",nb_sup)	
+                print(count,len(information_gains))    
         highest_ig = max(information_gains)
 #change here
+        print (information_gains)
+        print("\nmax is",highest_ig)
+        print("loc is",information_gains.index(highest_ig))
         end_time = timestamp()
         # self.print("    Find best feature time: {}".format(end_time - start_time))
         if highest_ig == 0:
